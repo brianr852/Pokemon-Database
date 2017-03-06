@@ -1,0 +1,278 @@
+drop view pokemon_total; 
+CREATE view pokemon_total as
+SELECT pokemon.pok_id, pokemon.pok_name, base_stats.b_atk, base_stats.b_def, base_stats.b_hp, 
+base_stats.b_speed, base_stats.b_sp_atk, base_stats.b_sp_def,
+sum(base_stats.b_atk + base_stats.b_def + base_stats.b_hp + base_stats.b_speed + base_stats.b_sp_atk + base_stats.b_sp_def) total
+FROM pokemon
+INNER JOIN base_stats
+ON pokemon.pok_id = base_stats.pok_id
+GROUP BY pokemon.pok_id;
+
+SELECT pokemon.pok_id, pokemon.pok_name, hab_name , pokemon.pok_height, pokemon.pok_weight, pokemon_species.capture_rate, pokemon_species.base_happiness
+FROM pokemon
+INNER JOIN pokemon_species
+ON pokemon.species_id = pokemon_species.species_id
+INNER JOIN pokemon_habitats
+ON pokemon_species.hab_id = pokemon_habitats.hab_id;
+
+create view grass_type_view as
+SELECT pokemon.pok_id, pokemon.pok_name, types.type_name
+FROM pokemon
+INNER JOIN pokemon_types
+ON pokemon.pok_id = pokemon_types.pok_id
+INNER JOIN types
+ON pokemon_types.type_id = types.type_id
+WHERE types.type_name LIKE '%grass%'
+
+
+
+SELECT pokemon.pok_id, pokemon.pok_name, base_stats.b_atk, base_stats.b_def, base_stats.b_hp, 
+base_stats.b_speed, base_stats.b_sp_atk, base_stats.b_sp_def,
+sum(base_stats.b_atk + base_stats.b_def + base_stats.b_hp + base_stats.b_speed + base_stats.b_sp_atk + base_stats.b_sp_def) as TOTAL
+FROM pokemon
+INNER JOIN base_stats
+ON pokemon.pok_id
+WHERE pokemon.pok_id = base_stats.pok_id
+GROUP BY pokemon.pok_id
+ORDER BY TOTAL DESC LIMIT 4 
+
+
+create view att_def_hp as
+SELECT pokemon.pok_id, pokemon.pok_name, base_stats.b_atk, base_stats.b_def, base_stats.b_hp, 
+base_stats.b_speed, base_stats.b_sp_atk, base_stats.b_sp_def
+FROM pokemon
+INNER JOIN base_stats
+ON pokemon.pok_id = base_stats.pok_id
+WHERE b_atk > 100 and b_def > 100 and b_hp > 100
+GROUP BY pokemon.pok_id;
+
+create view pok_abilities as
+SELECT pokemon.pok_id, pokemon.pok_name, abilities.abil_name, pokemon_abilities.is_hidden, pokemon.pok_base_experience
+FROM pokemon
+INNER JOIN pokemon_abilities
+ON pokemon.pok_id = pokemon_abilities.pok_id
+INNER JOIN abilities
+ON pokemon_abilities.abil_id = abilities.abil_id
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_types` (IN var1 varchar(8))
+BEGIN
+SELECT pokemon.pok_id, pokemon.pok_name, types.type_name
+FROM pokemon
+INNER JOIN pokemon_types
+ON pokemon.pok_id = pokemon_types.pok_id
+INNER JOIN types
+ON pokemon_types.type_id = types.type_id
+WHERE types.type_name LIKE var1;
+END //
+call output_pokemon_types('charizard')
+
+
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_habitat` (IN var1 varchar(8))
+BEGIN
+SELECT pokemon.pok_id, pokemon.pok_name, pokemon_habitats.hab_name
+FROM pokemon
+INNER JOIN pokemon_evolution_matchup
+ON pokemon.pok_id = pokemon_evolution_matchup.pok_id
+INNER JOIN pokemon_habitats
+ON pokemon_evolution_matchup.hab_id = pokemon_habitats.hab_id
+WHERE pokemon_habitats.hab_name LIKE var1;
+END //
+call output_pokemon_habitat('cave')
+
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_fainted` (IN var1 varchar(79), IN var2 varchar(79))
+BEGIN
+SELECT pokemon.pok_id, pokemon.pok_name, moves.move_name
+FROM pokemon
+INNER JOIN base_stats
+ON pokemon.pok_id = base_stats.pok_id
+INNER JOIN pokemon_moves
+ON pokemon.pok_id = pokemon_moves.pok_id
+INNER JOIN moves
+ON moves.move_name LIKE var1
+WHERE pokemon.pok_name LIKE var2 and moves.move_name LIKE var1 and moves.move_power - base_stats.b_hp >= 0
+GROUP BY pokemon.pok_id;
+END //
+call output_pokemon_fainted('mega-punch','Venusaur')
+
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_moves` (IN var1 varchar(79))
+BEGIN
+SELECT pokemon.pok_id, pokemon.pok_name, moves.move_name
+FROM pokemon
+INNER JOIN pokemon_moves
+ON pokemon.pok_id = pokemon_moves.pok_id
+INNER JOIN moves
+ON pokemon_moves.move_id = moves.move_id
+WHERE pokemon.pok_name LIKE var1;
+END //
+call output_pokemon_moves('venusaur')
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_abilities` (IN var1 varchar(79))
+BEGIN
+SELECT pokemon.pok_id, pokemon.pok_name, abilities.abil_name
+FROM pokemon
+INNER JOIN pokemon_abilities
+ON pokemon.pok_id = pokemon_abilities.pok_id
+INNER JOIN abilities
+ON pokemon_abilities.abil_id = abilities.abil_id
+WHERE pokemon.pok_name LIKE var1;
+END //
+call output_pokemon_abilities('venusaur')
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_moves_types` (IN var1 varchar(79))
+BEGIN
+SELECT moves.move_name, types.type_name
+FROM moves
+INNER JOIN types
+ON moves.type_id = types.type_id
+WHERE moves.move_name LIKE var1;
+END //
+call output_pokemon_moves_types('fire-punch')
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_type_efficacy` (IN var1 varchar(79))
+BEGIN
+SELECT types.type_id, types.type_name, type_efficacy.damage_factor, type_efficacy.target_type_id
+FROM types
+INNER JOIN type_efficacy
+ON types.damage_type_id = type_efficacy.damage_type_id
+WHERE types.type_name LIKE var1;
+END //
+call output_pokemon_type_efficacy('steel')
+
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_moves_version` (IN var1 varchar(79))
+BEGIN
+SELECT moves.move_id, moves.move_name, version_groups.version_name
+FROM moves
+INNER JOIN pokemon_moves
+ON moves.move_id = pokemon_moves.move_id
+INNER JOIN version_groups
+ON pokemon_moves.version_group_id = version_groups.version_id
+WHERE moves.move_name LIKE var1
+group by moves.move_id;
+END //
+call output_pokemon_moves_version('scratch')
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_moves_method` (IN var1 varchar(79))
+BEGIN
+SELECT pokemon.pok_name, pokemon_move_methods.method_name
+FROM pokemon
+INNER JOIN pokemon_moves
+ON pokemon.pok_id = pokemon_moves.pok_id
+INNER JOIN pokemon_move_methods
+ON pokemon_moves.method_id = pokemon_move_methods.method_id
+INNER JOIN moves
+ON pokemon_moves.move_id = moves.move_id
+WHERE moves.move_name LIKE var1
+group by moves.move_id;
+END //
+call output_pokemon_moves_method('scratch')
+
+
+drop procedure output_pokemon_hidden_abil;
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_hidden_abil` (IN var1 varchar(79))
+BEGIN
+SELECT pokemon.pok_name, abilities.abil_name
+FROM pokemon
+INNER JOIN pokemon_abilities
+ON pokemon.pok_id = pokemon_abilities.pok_id
+INNER JOIN abilities
+ON pokemon_abilities.abil_id = abilities.abil_id
+WHERE pokemon.pok_name LIKE var1 and pokemon_abilities.is_hidden = 1
+group by abilities.abil_id;
+END //
+call output_pokemon_hidden_abil('charmander')
+
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_base_stats` (IN var1 varchar(79))
+BEGIN
+SELECT base_stats.b_atk, base_stats.b_def, base_stats.b_hp, base_stats.b_sp_atk, base_stats.b_sp_def, base_stats.b_speed
+FROM pokemon
+INNER JOIN base_stats
+ON pokemon.pok_id = base_stats.pok_id
+WHERE pokemon.pok_name like var1;
+END //
+call output_pokemon_base_stats('charmeleon')
+
+
+drop procedure output_pokemon_evol;
+DELIMITER //
+CREATE PROCEDURE `output_pokemon_evol` (IN var1 int)
+BEGIN
+SELECT pokemon.pok_name, pokemon_evolution.evolved_species_id, pokemon_evolution.evol_minimum_level
+FROM pokemon
+INNER JOIN pokemon_evolution_matchup
+ON pokemon.pok_id = pokemon_evolution_matchup.evolves_from_species_id
+INNER JOIN pokemon_evolution
+ON pokemon_evolution_matchup.pok_id = pokemon_evolution.evolved_species_id
+WHERE pokemon.pok_id LIKE var1; 
+END //
+call output_pokemon_evol('2')
+
+DROP TRIGGER IF EXISTS NEW_POKEMON; 
+
+DELIMITER // 
+CREATE TRIGGER NEW_POKEMON BEFORE INSERT ON POKEMON
+FOR EACH ROW 
+BEGIN 
+	IF NEW.pok_height < 0 THEN
+		SET NEW.pok_height = 0;
+	END IF;
+	IF NEW.pok_weight < 0 THEN
+		SET NEW.pok_weight = 0;
+	END IF;
+	IF NEW.pok_base_experience < 0 THEN
+		SET NEW.pok_base_experience = 0;
+	END IF; 
+	END; // 
+DELIMITER ; //
+
+INSERT INTO POKEMON VALUES('722',"popplio",'-1','-1','-1');
+
+
+DROP TRIGGER IF EXISTS NEW_HABITAT; 
+
+DELIMITER // 
+CREATE TRIGGER NEW_HABITAT BEFORE INSERT ON pokemon_habitats
+FOR EACH ROW 
+BEGIN 
+	IF NEW.hab_name = "" THEN
+		SET NEW.hab_name = "Unknown";
+	END IF;
+	IF NEW.hab_descript = "" THEN
+		SET NEW.hab_descript = "Unknown";
+	END IF; 
+	END; // 
+DELIMITER ; //
+
+INSERT INTO pokemon_habitats VALUES('10'," "," ");
+
+
+DROP TRIGGER IF EXISTS NEW_ABILITY; 
+
+DELIMITER // 
+CREATE TRIGGER NEW_ABILITY BEFORE INSERT ON pokemon_abilities
+FOR EACH ROW 
+BEGIN 
+	IF NEW.is_hidden >= 0 and NEW.is_hidden < 2 THEN
+		SET NEW.is_hidden = 0;
+	END IF;
+	IF NEW.slot > 0 and NEW.is_hidden < 4 THEN
+		SET NEW.is_hidden = 1;
+	END IF; 
+	END; // 
+DELIMITER ; //
+
+INSERT INTO pokemon_abilities VALUES('407','22','2','4');
